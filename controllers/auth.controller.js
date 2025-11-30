@@ -16,7 +16,7 @@ exports.signUp = (req, res, next) => {
             err.statusCode = 409;
             throw (err);
         }
-        const hashed = bcrypt.hash(password);
+        const hashed = bcrypt.hash(password, 10);
         users.push({ email, password: hashed });
         res.status(201).json({ message: "Created" })
     } catch (error) {
