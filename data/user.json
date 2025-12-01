@@ -1,0 +1,15 @@
+[
+  {
+    "email": "tes@gmail.com",
+    "password": {}
+  },
+  {
+    "email": "tes1@gmail.com",
+    "password": {}
+  },
+  {
+    "id": 3,
+    "email": "tes11@gmail.com",
+    "password": "$2b$10$nrdaU9X4AJ/n0zM3rOSo1uQHPkLpGD3v0QWSEDv/T4huP25Kw9vDW"
+  }
+]

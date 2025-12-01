@@ -1,55 +1,92 @@
-const users = require('../data/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 
-exports.signUp = (req, res, next) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            const error = new Error('Email and password required!')
-            error.statusCode = 400;
-            throw (error);
-        }
-        const user = users.find(t => t.email === email);
-        if (user) {
-            const err = new Error('User already exist');
-            err.statusCode = 409;
-            throw (err);
-        }
-        const hashed = bcrypt.hash(password, 10);
-        users.push({ email, password: hashed });
-        res.status(201).json({ message: "Created" })
-    } catch (error) {
-        next(error)
-    }
+const filePath = path.join(__dirname, '../data/user.json');
 
+function readUsers() {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(data);
 }
 
-exports.login = (req, res, next) => {
+function writeUsers(users) {
+    fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
+}
+
+exports.signUp = async (req, res, next) => {
     try {
         const { email, password } = req.body;
+
         if (!email || !password) {
-            const error = new Error('Email and password required!')
+            const error = new Error('Email and password required!');
             error.statusCode = 400;
-            throw (error);
+            throw error;
         }
-        const user = users.find(t => t.email === email);
-        if (!user) {
-            const err = new Error('User is not exit');
-            err.statusCode = 404;
-            throw (err);
+
+        let users = readUsers();
+
+        const exists = users.find(u => u.email === email);
+        if (exists) {
+            const error = new Error('User already exists');
+            error.statusCode = 409;
+            throw error;
         }
-        const match = bcrypt.compare(password, user.password);
-        if (match) {
-            const error = new Error('Invalid input');
-            error.statusCode = 401;
-            throw (error)
+
+        const hashed = await bcrypt.hash(password, 10);
+
+        const newUser = {
+            id: users.length + 1,
+            email,
+            password: hashed
         };
 
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
-        res.json({ token })
+        users.push(newUser);
+        writeUsers(users);
+
+        res.status(201).json({ message: "User created" });
+
     } catch (error) {
-        console.log(error)
-        next(error)
+        next(error);
     }
-}
+};
+
+
+exports.login = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            const error = new Error('Email and password required!');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        let users = readUsers();
+
+        const user = users.find(u => u.email === email);
+        if (!user) {
+            const error = new Error('User does not exist');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            const error = new Error('Invalid credentials');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const token = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        res.json({ token });
+
+    } catch (error) {
+        next(error);
+    }
+};
